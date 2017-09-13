@@ -2,7 +2,7 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-      "environmentName": {
+      "prefix": {
           "minLength": 0,
           "type": "string"
       },
@@ -26,14 +26,14 @@
       "sourceResourceGroupName": "[parameters('sourceResourceGroupName')]",
       "sourceSpVmOsDiskName": "[parameters('sourceOsDiskName')]",
       "sourceSpVmDataDiskName": "[parameters('sourceDataDiskName')]",
-      "spVmName": "[concat(parameters('environmentName'),'-sp2016-vm')]",
+      "spVmName": "[concat(parameters('prefix'),'-sp-vm')]",
       "spVmNicName": "[concat(variables('spVmName'),'-nic')]",
       "spVmPipName": "[concat(variables('spVmName'),'-pip')]",
       "spVmOsDiskName": "[concat(variables('spVmName'),'-os')]",
       "spVmDataDiskName": "[concat(variables('spVmName'),'-data')]",
-      "nsgName": "[concat(parameters('environmentName'),'-nsg')]",
-      "vnetName": "[concat(parameters('environmentName'),'-vnet')]",
-      "subnetName": "[concat(parameters('environmentName'),'-subnet')]"
+      "nsgName": "[concat(parameters('prefix'),'-nsg')]",
+      "vnetName": "[concat(parameters('prefix'),'-vnet')]",
+      "subnetName": "[concat(parameters('prefix'),'-subnet')]"
   },
   "resources": [
       {
