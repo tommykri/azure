@@ -1,12 +1,271 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+      "environmentName": {
+          "minLength": 0,
+          "type": "string"
+      },
+      "sourceResourceGroupName": {
+        "defaultValue": "sp2016-rg",
+        "minLength": 0,
+        "type": "string"
+      },
+      "sourceOsDiskName": {
+        "defaultValue": "sp2016-sp-vm1-os",
+        "minLength": 0,
+        "type": "string"
+      },
+      "sourceDataDiskName": {
+        "defaultValue": "sp2016-sp-vm1-data",
+        "minLength": 0,
+        "type": "string"
+      }
   },
   "variables": {
+      "sourceResourceGroupName": "[parameters('sourceResourceGroupName')]",
+      "sourceSpVmOsDiskName": "[parameters('sourceOsDiskName')]",
+      "sourceSpVmDataDiskName": "[parameters('sourceDataDiskName')]",
+      "spVmName": "[concat(parameters('environmentName'),'-sp2016-vm')]",
+      "spVmNicName": "[concat(variables('spVmName'),'-nic')]",
+      "spVmPipName": "[concat(variables('spVmName'),'-pip')]",
+      "spVmOsDiskName": "[concat(variables('spVmName'),'-os')]",
+      "spVmDataDiskName": "[concat(variables('spVmName'),'-data')]",
+      "nsgName": "[concat(parameters('environmentName'),'-nsg')]",
+      "vnetName": "[concat(parameters('environmentName'),'-vnet')]",
+      "subnetName": "[concat(parameters('environmentName'),'-subnet')]"
   },
   "resources": [
+      {
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "name": "[variables('nsgName')]",
+          "apiVersion": "2017-06-01",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "NetworkSecurityGroup"
+          },
+          "properties": {
+              "securityRules": [
+                  {
+                      "name": "rdp-allow",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "3389",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "*",
+                          "access": "Allow",
+                          "priority": 100,
+                          "direction": "Inbound",
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "http-allow",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "80",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "*",
+                          "access": "Allow",
+                          "priority": 101,
+                          "direction": "Inbound",
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  },
+                  {
+                      "name": "https-allow",
+                      "properties": {
+                          "protocol": "Tcp",
+                          "sourcePortRange": "*",
+                          "destinationPortRange": "443",
+                          "sourceAddressPrefix": "*",
+                          "destinationAddressPrefix": "*",
+                          "access": "Allow",
+                          "priority": 102,
+                          "direction": "Inbound",
+                          "sourceAddressPrefixes": [],
+                          "destinationAddressPrefixes": []
+                      }
+                  }
+              ]
+          },
+          "dependsOn": []
+      },
+      {
+          "type": "Microsoft.Network/virtualNetworks",
+          "name": "[variables('vnetName')]",
+          "apiVersion": "2017-06-01",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "VirtualNetwork"
+          },
+          "properties": {
+              "addressSpace": {
+                  "addressPrefixes": [
+                      "10.0.0.0/24"
+                  ]
+              },
+              "dhcpOptions": {
+                  "dnsServers": [
+                      "10.0.0.4"
+                  ]
+              },
+              "subnets": [
+                  {
+                      "name": "[variables('subnetName')]",
+                      "properties": {
+                          "addressPrefix": "10.0.0.0/24",
+                          "networkSecurityGroup": {
+                              "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                          }
+                      }
+                  }
+              ],
+              "virtualNetworkPeerings": []
+          },
+          "dependsOn": [
+              "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+          ]
+      },
+      {
+          "type": "Microsoft.Network/publicIPAddresses",
+          "name": "[variables('spVmPipName')]",
+          "apiVersion": "2017-06-01",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "PublicIPAddress"
+          },
+          "scale": null,
+          "properties": {
+              "publicIPAddressVersion": "IPv4",
+              "publicIPAllocationMethod": "Dynamic",
+              "idleTimeoutInMinutes": 4
+          },
+          "dependsOn": []
+      },
+      {
+          "type": "Microsoft.Network/networkInterfaces",
+          "name": "[variables('spVmNicName')]",
+          "apiVersion": "2017-06-01",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "NetworkInterface"
+          },
+          "properties": {
+              "ipConfigurations": [
+                  {
+                      "name": "ipconfig1",
+                      "properties": {
+                          "privateIPAddress": "10.0.0.4",
+                          "privateIPAllocationMethod": "Static",
+                          "publicIPAddress": {
+                              "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]"
+                          },
+                          "subnet": {
+                              "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+                          },
+                          "primary": true,
+                          "privateIPAddressVersion": "IPv4"
+                      }
+                  }
+              ],
+              "dnsSettings": {
+                  "dnsServers": [],
+                  "appliedDnsServers": [],
+                  "internalDomainNameSuffix": ""
+              },
+              "enableAcceleratedNetworking": false,
+              "enableIPForwarding": false,
+              "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              },
+              "primary": true
+          },
+          "dependsOn": [
+              "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+              "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]",
+              "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+          ]
+      },
+      {
+          "type": "Microsoft.Compute/disks",
+          "name": "[variables('spVmOsDiskName')]",
+          "apiVersion": "2017-03-30",
+          "location": "[resourceGroup().location]",
+          "sku": {
+              "name": "Standard_LRS"
+          },
+          "properties": {
+              "creationData": {
+                  "createOption": "Copy",
+                  "sourceResourceId": "[resourceId(variables('sourceResourceGroupName'), 'Microsoft.Compute/disks', variables('sourceSpVmOsDiskName'))]"
+              }
+          }
+      },
+      {
+          "type": "Microsoft.Compute/disks",
+          "name": "[variables('spVmDataDiskName')]",
+          "apiVersion": "2017-03-30",
+          "location": "[resourceGroup().location]",
+          "sku": {
+              "name": "Standard_LRS"
+          },
+          "properties": {
+              "creationData": {
+                  "createOption": "Copy",
+                  "sourceResourceId": "[resourceId(variables('sourceResourceGroupName'), 'Microsoft.Compute/disks', variables('sourceSpVmDataDiskName'))]"
+              }
+          }
+      },
+      {
+          "apiVersion": "2017-03-30",
+          "type": "Microsoft.Compute/virtualMachines",
+          "name": "[variables('spVmName')]",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "VirtualMachine"
+          },
+          "properties": {
+              "hardwareProfile": {
+                  "vmSize": "Standard_DS12_v2"
+              },
+              "storageProfile": {
+                  "osDisk": {
+                      "osType": "Windows",
+                      "createOption": "Attach",
+                      "managedDisk": {
+                          "id": "[resourceId('Microsoft.Compute/disks/', variables('spVmOsDiskName'))]"
+                      },
+                      "caching": "ReadWrite"
+                  },
+                  "dataDisks": [
+                      {
+                          "lun": 0,
+                          "createOption": "Attach",
+                          "managedDisk": {
+                              "id": "[resourceId('Microsoft.Compute/disks/', variables('spVmDataDiskName'))]"
+                          }
+                      }
+                  ]
+              },
+              "networkProfile": {
+                  "networkInterfaces": [
+                      {
+                          "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
+                      }
+                  ]
+              }
+          },
+          "dependsOn": [
+              "[resourceId('Microsoft.Compute/disks/', variables('spVmOsDiskName'))]",
+              "[resourceId('Microsoft.Compute/disks/', variables('spVmDataDiskName'))]",
+              "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
+          ]
+      }
   ],
-  "outputs": {
-  }
+  "outputs": {}
 }
