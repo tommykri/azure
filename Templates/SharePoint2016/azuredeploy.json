@@ -57,202 +57,205 @@
     //     "defaultValue": ""
     // }
   },
-  "variables": {
-      "spVmComputerName": "[parameters('computerName')]",
-      "adminUsername": "[parameters('adminUsername')]",
-      "adminPassword": "[parameters('adminPassword')]",
-      "spVmName": "[variables('spVmComputerName')]",    
-      "spVmNicName": "[concat(variables('spVmName'),'-nic')]",
-      "spVmPipName": "[concat(variables('spVmName'),'-pip')]",
-      "spVmOsDiskName": "[concat(variables('spVmName'),'-os')]",
-      "spVmDataDiskName": "[concat(variables('spVmName'),'-data')]",
-      "domainNameLabel": "[concat('tomkri-', variables('spVmComputerName'))]",
-      "storageAccountName": "adev3866",
-      "vnetName": "dev-vnet",
-      "subnetName": "default"
-  },
-  "resources": [
-      {
-          "type": "Microsoft.Network/publicIPAddresses",
-          "name": "[variables('spVmPipName')]",
-          "apiVersion": "2017-06-01",
-          "location": "[resourceGroup().location]",
-          "tags": {
-              "displayName": "PublicIPAddress"
-          },
-          "properties": {
-              "publicIPAllocationMethod": "Dynamic",
-              "dnsSettings": {
-                "domainNameLabel": "[variables('domainNameLabel')]"
-            }
-          },
-          "dependsOn": []
-      },
-      {
-          "type": "Microsoft.Network/networkInterfaces",
-          "name": "[variables('spVmNicName')]",
-          "apiVersion": "2017-06-01",
-          "location": "[resourceGroup().location]",
-          "tags": {
-              "displayName": "NetworkInterface"
-          },
-          "properties": {
-              "ipConfigurations": [
-                  {
-                      "name": "ipconfig1",
-                      "properties": {
-                          "privateIPAllocationMethod": "Dynamic",
-                          "publicIPAddress": {
-                              "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]"
-                          },
-                          "subnet": {
-                              "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
-                          },
-                          "primary": true,
-                          "privateIPAddressVersion": "IPv4"
-                      }
-                  }
-              ],
-              "primary": true
-          },
-          "dependsOn": [
-              "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]"
-          ]
-      },
-      {
-          "type": "Microsoft.Compute/disks",
-          "name": "[variables('spVmDataDiskName')]",
-          "apiVersion": "2017-03-30",
-          "location": "[resourceGroup().location]",
-          "properties": {
-            "accountType": "Premium_LRS",
-            "creationData": {
-                "createOption": "Empty"
-            },
-            "diskSizeGB": 100
-          }
-      },
-      {
-          "apiVersion": "2017-03-30",
-          "type": "Microsoft.Compute/virtualMachines",
-          "name": "[variables('spVmName')]",
-          "location": "[resourceGroup().location]",
-          "tags": {
-              "displayName": "VirtualMachine"
-          },
-          "properties": {
-              "hardwareProfile": {
-                  "vmSize": "Standard_DS12_v2_Promo"
-              },
-              "storageProfile": {
-                "imageReference": {
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2016-Datacenter",
-                    "version": "latest"
-                },
-                "osDisk": {
-                    "osType": "Windows",
-                    "name": "[parameters('spVmOsDiskName')]",
-                    "createOption": "FromImage",
-                    "caching": "ReadWrite",
-                    "managedDisk": {
-                        "storageAccountType": "Premium_LRS",
-                        "id": "[resourceId('Microsoft.Compute/disks', variables('spVmOsDiskName'))]"
-                    },
-                    "diskSizeGB": 127
-                },
-                "dataDisks": [
-                    {
-                        "lun": 0,
-                        "name": "[parameters('spVmDataDiskName')]",
-                        "createOption": "Attach",
-                        "caching": "None",
-                        "managedDisk": {
-                            "storageAccountType": "Premium_LRS",
-                            "id": "[resourceId('Microsoft.Compute/disks', variables('spVmDataDiskName'))]"
-                        },
-                        "diskSizeGB": 100
-                    }
-                ]
-            },
-            "osProfile": {
-              "computerName": "[variables('spVmComputerName')]",
-              "adminUsername": "[variables('adminUsername')]",
-              "adminPassword": "[variables('adminPassword')]",
-              "windowsConfiguration": {
-                  "enableAutomaticUpdates": true,
-                  "timeZone": "Central European Time"
-              },
-              "secrets": []
-            },
-            "networkProfile": {
-                "networkInterfaces": [
-                    {
-                        "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
-                    }
-                ]
-            },
-            "diagnosticsProfile": {
-                "bootDiagnostics": {
-                  "enabled": "true",
-                  "storageUri": "[reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2015-06-15').primaryEndpoints.blob]"
-                }
-              }
-            // "resources": [
-            //   {
-            //       "type": "extensions",
-            //       "name": "CustomScriptExtension",
-            //       "apiVersion": "2015-06-15",
-            //       "location": "[resourceGroup().location]",
-            //       "dependsOn": [
-            //           "[variables('vmName')]"
-            //       ],
-            //       "properties": {
-            //           "publisher": "Microsoft.Compute",
-            //           "type": "CustomScriptExtension",
-            //           "typeHandlerVersion": "1.8",
-            //           "autoUpgradeMinorVersion": true,
-            //           "settings": {
-            //               "fileUris": [
-            //                   "[concat(parameters('_artifactsLocation'), '/', variables('ScriptFolder'), '/', variables('ScriptFileName'), parameters('_artifactsLocationSasToken'))]"
-            //               ],
-            //               "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('scriptFolder'), '/', variables('scriptFileName'), ' ', variables('scriptParameters'))]"
-            //           }
-            //       }
-            //   }
-            // ]
-          },
-          "dependsOn": [
-              "[resourceId('Microsoft.Compute/disks/', variables('spVmDataDiskName'))]",
-              "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
-          ]
-      },
-      {
-        "apiVersion": "2015-06-15",
-        "type": "Microsoft.Compute/virtualMachines/extensions",
-        "name": "[concat(variables('spVmName'),'/joindomain')]",
-        "location": "[resourceGroup().location]",
-        "dependsOn": [
-          "[concat('Microsoft.Compute/virtualMachines/', variables('spVmName'))]"
-        ],
-        "properties": {
-          "publisher": "Microsoft.Compute",
-          "type": "JsonADDomainExtension",
-          "typeHandlerVersion": "1.3",
-          "autoUpgradeMinorVersion": true,
-          "settings": {
-            "Name": "[parameters('domainToJoin')]",
-            "OUPath": "[parameters('domainOuPath')]",
-            "User": "[parameters('domainUsername')]",
-            "Restart": "true",
-            "Options": "1"
-          },
-          "protectedSettings": {
-            "Password": "[parameters('domainPassword')]"
-          }
-        }
-      }
-  ],
-  "outputs": {}
+//   "variables": {
+//       "spVmComputerName": "[parameters('computerName')]",
+//       "adminUsername": "[parameters('adminUsername')]",
+//       "adminPassword": "[parameters('adminPassword')]",
+//       "spVmName": "[variables('spVmComputerName')]",    
+//       "spVmNicName": "[concat(variables('spVmName'),'-nic')]",
+//       "spVmPipName": "[concat(variables('spVmName'),'-pip')]",
+//       "spVmOsDiskName": "[concat(variables('spVmName'),'-os')]",
+//       "spVmDataDiskName": "[concat(variables('spVmName'),'-data')]",
+//       "domainNameLabel": "[concat('tomkri-', variables('spVmComputerName'))]",
+//       "storageAccountName": "adev3866",
+//       "vnetName": "dev-vnet",
+//       "subnetName": "default"
+//   },
+"resources": [
+    
+],
+//   "resources": [
+//       {
+//           "type": "Microsoft.Network/publicIPAddresses",
+//           "name": "[variables('spVmPipName')]",
+//           "apiVersion": "2017-06-01",
+//           "location": "[resourceGroup().location]",
+//           "tags": {
+//               "displayName": "PublicIPAddress"
+//           },
+//           "properties": {
+//               "publicIPAllocationMethod": "Dynamic",
+//               "dnsSettings": {
+//                 "domainNameLabel": "[variables('domainNameLabel')]"
+//             }
+//           },
+//           "dependsOn": []
+//       },
+//       {
+//           "type": "Microsoft.Network/networkInterfaces",
+//           "name": "[variables('spVmNicName')]",
+//           "apiVersion": "2017-06-01",
+//           "location": "[resourceGroup().location]",
+//           "tags": {
+//               "displayName": "NetworkInterface"
+//           },
+//           "properties": {
+//               "ipConfigurations": [
+//                   {
+//                       "name": "ipconfig1",
+//                       "properties": {
+//                           "privateIPAllocationMethod": "Dynamic",
+//                           "publicIPAddress": {
+//                               "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]"
+//                           },
+//                           "subnet": {
+//                               "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+//                           },
+//                           "primary": true,
+//                           "privateIPAddressVersion": "IPv4"
+//                       }
+//                   }
+//               ],
+//               "primary": true
+//           },
+//           "dependsOn": [
+//               "[resourceId('Microsoft.Network/publicIPAddresses', variables('spVmPipName'))]"
+//           ]
+//       },
+//       {
+//           "type": "Microsoft.Compute/disks",
+//           "name": "[variables('spVmDataDiskName')]",
+//           "apiVersion": "2017-03-30",
+//           "location": "[resourceGroup().location]",
+//           "properties": {
+//             "accountType": "Premium_LRS",
+//             "creationData": {
+//                 "createOption": "Empty"
+//             },
+//             "diskSizeGB": 100
+//           }
+//       },
+//       {
+//           "apiVersion": "2017-03-30",
+//           "type": "Microsoft.Compute/virtualMachines",
+//           "name": "[variables('spVmName')]",
+//           "location": "[resourceGroup().location]",
+//           "tags": {
+//               "displayName": "VirtualMachine"
+//           },
+//           "properties": {
+//               "hardwareProfile": {
+//                   "vmSize": "Standard_DS12_v2_Promo"
+//               },
+//               "storageProfile": {
+//                 "imageReference": {
+//                     "publisher": "MicrosoftWindowsServer",
+//                     "offer": "WindowsServer",
+//                     "sku": "2016-Datacenter",
+//                     "version": "latest"
+//                 },
+//                 "osDisk": {
+//                     "osType": "Windows",
+//                     "name": "[parameters('spVmOsDiskName')]",
+//                     "createOption": "FromImage",
+//                     "caching": "ReadWrite",
+//                     "managedDisk": {
+//                         "storageAccountType": "Premium_LRS",
+//                         "id": "[resourceId('Microsoft.Compute/disks', variables('spVmOsDiskName'))]"
+//                     },
+//                     "diskSizeGB": 127
+//                 },
+//                 "dataDisks": [
+//                     {
+//                         "lun": 0,
+//                         "name": "[parameters('spVmDataDiskName')]",
+//                         "createOption": "Attach",
+//                         "caching": "None",
+//                         "managedDisk": {
+//                             "storageAccountType": "Premium_LRS",
+//                             "id": "[resourceId('Microsoft.Compute/disks', variables('spVmDataDiskName'))]"
+//                         },
+//                         "diskSizeGB": 100
+//                     }
+//                 ]
+//             },
+//             "osProfile": {
+//               "computerName": "[variables('spVmComputerName')]",
+//               "adminUsername": "[variables('adminUsername')]",
+//               "adminPassword": "[variables('adminPassword')]",
+//               "windowsConfiguration": {
+//                   "enableAutomaticUpdates": true,
+//                   "timeZone": "Central European Time"
+//               },
+//               "secrets": []
+//             },
+//             "networkProfile": {
+//                 "networkInterfaces": [
+//                     {
+//                         "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
+//                     }
+//                 ]
+//             },
+//             "diagnosticsProfile": {
+//                 "bootDiagnostics": {
+//                   "enabled": "true",
+//                   "storageUri": "[reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), '2015-06-15').primaryEndpoints.blob]"
+//                 }
+//               }
+//             // "resources": [
+//             //   {
+//             //       "type": "extensions",
+//             //       "name": "CustomScriptExtension",
+//             //       "apiVersion": "2015-06-15",
+//             //       "location": "[resourceGroup().location]",
+//             //       "dependsOn": [
+//             //           "[variables('vmName')]"
+//             //       ],
+//             //       "properties": {
+//             //           "publisher": "Microsoft.Compute",
+//             //           "type": "CustomScriptExtension",
+//             //           "typeHandlerVersion": "1.8",
+//             //           "autoUpgradeMinorVersion": true,
+//             //           "settings": {
+//             //               "fileUris": [
+//             //                   "[concat(parameters('_artifactsLocation'), '/', variables('ScriptFolder'), '/', variables('ScriptFileName'), parameters('_artifactsLocationSasToken'))]"
+//             //               ],
+//             //               "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('scriptFolder'), '/', variables('scriptFileName'), ' ', variables('scriptParameters'))]"
+//             //           }
+//             //       }
+//             //   }
+//             // ]
+//           },
+//           "dependsOn": [
+//               "[resourceId('Microsoft.Compute/disks/', variables('spVmDataDiskName'))]",
+//               "[resourceId('Microsoft.Network/networkInterfaces', variables('spVmNicName'))]"
+//           ]
+//       },
+//       {
+//         "apiVersion": "2015-06-15",
+//         "type": "Microsoft.Compute/virtualMachines/extensions",
+//         "name": "[concat(variables('spVmName'),'/joindomain')]",
+//         "location": "[resourceGroup().location]",
+//         "dependsOn": [
+//           "[concat('Microsoft.Compute/virtualMachines/', variables('spVmName'))]"
+//         ],
+//         "properties": {
+//           "publisher": "Microsoft.Compute",
+//           "type": "JsonADDomainExtension",
+//           "typeHandlerVersion": "1.3",
+//           "autoUpgradeMinorVersion": true,
+//           "settings": {
+//             "Name": "[parameters('domainToJoin')]",
+//             "OUPath": "[parameters('domainOuPath')]",
+//             "User": "[parameters('domainUsername')]",
+//             "Restart": "true",
+//             "Options": "1"
+//           },
+//           "protectedSettings": {
+//             "Password": "[parameters('domainPassword')]"
+//           }
+//         }
+//       }
+//   ],
+   "outputs": {}
 }
