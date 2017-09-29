@@ -1,0 +1,77 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string",
+            "defaultValue": "devlab"
+        },
+        "regionId": {
+            "type": "string",
+            "defaultValue": "westeurope"
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2017-04-26-preview",
+            "name": "[parameters('name')]",
+            "type": "Microsoft.DevTestLab/labs",
+            "location": "[parameters('regionId')]",
+            "tags": {},
+            "properties": {
+                "labStorageType": "Premium"
+            },
+            "resources": [
+                {
+                    "apiVersion": "2017-04-26-preview",
+                    "name": "LabVmsShutdown",
+                    "location": "[parameters('regionId')]",
+                    "type": "schedules",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DevTestLab/labs', parameters('name'))]"
+                    ],
+                    "properties": {
+                        "status": "Enabled",
+                        "timeZoneId": "W. Europe Standard Time",
+                        "dailyRecurrence": {
+                            "time": "1615"
+                        },
+                        "taskType": "LabVmsShutdownTask",
+                        "notificationSettings": {
+                            "status": "Enabled",
+                            "timeInMinutes": 30
+                        }
+                    }
+                },
+                {
+                    "apiVersion": "2017-04-26-preview",
+                    "name": "[concat(parameters('name'),'-vnet')]",
+                    "type": "virtualNetworks",
+                    "location": "[parameters('regionId')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DevTestLab/labs', parameters('name'))]"
+                    ]
+                },
+                {
+                    "apiVersion": "2017-04-26-preview",
+                    "name": "AutoShutdown",
+                    "type": "notificationChannels",
+                    "location": "[parameters('regionId')]",
+                    "properties": {
+                        "description": "This option will send notifications to the specified email address and/or webhook URL before auto-shutdown of virtual machines occurs.",
+                        "events": [
+                            {
+                                "eventName": "Autoshutdown"
+                            }
+                        ],
+                        "webHookUrl": null,
+                        "emailRecipient": "tommy.kristoffersen@bouvet.no"
+                    },
+                    "dependsOn": [
+                        "[resourceId('Microsoft.DevTestLab/labs', parameters('name'))]"
+                    ]
+                }
+            ]
+        }
+    ]
+}
