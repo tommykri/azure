@@ -37,7 +37,7 @@
         "dataDiskName": "[concat(variables('vmName'), '-data')]",
         "publicIpName": "[concat(variables('vmName'), '-pip')]",
         "nicName": "[concat(variables('vmName'), '-nic')]",
-        "domainNameLabel": "[concat('tomkri-', parameters('vmName'))]",
+        "domainNameLabel": "[concat('tomkri-', variables('vmName'))]",
         "vnetName": "devlab-vnet",
         "subnetName": "default",
         "apiVersion": "2015-06-15"
@@ -124,7 +124,7 @@
                     },
                     "osDisk": {
                         "osType": "Windows",
-                        "name": "[parameters('osDiskName')]",
+                        "name": "[variables('osDiskName')]",
                         "createOption": "FromImage",
                         "caching": "ReadWrite",
                         "managedDisk": {
@@ -136,7 +136,7 @@
                     "dataDisks": [
                         {
                             "lun": 0,
-                            "name": "[parameters('dataDiskName')]",
+                            "name": "[variables('dataDiskName')]",
                             "createOption": "Attach",
                             "caching": "None",
                             "managedDisk": {
