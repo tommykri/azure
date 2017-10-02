@@ -131,7 +131,7 @@
                             "storageAccountType": "Premium_LRS",
                             "id": "[resourceId('Microsoft.Compute/disks', variables('osDiskName'))]"
                         },
-                        "diskSizeGB": 127
+                        "diskSizeGB": 80
                     },
                     "dataDisks": [
                         {
