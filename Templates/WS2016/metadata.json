@@ -1,5 +1,5 @@
 {
-  "itemDisplayName": "Windows Server 2016",
+  "itemDisplayName": "Windows Server 2016 Base",
   "description": "Create a Windows Server 2016 server",
   "summary": "A blank template and empty parameters file.  Use this template as the framework for your custom deployment.",
   "dateUpdated": "2016-09-28"

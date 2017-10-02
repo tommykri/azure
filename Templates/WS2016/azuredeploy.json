@@ -2,25 +2,25 @@
     "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "vmName": {
+        "Name": {
             "type": "string",
             "metadata": {
                 "description": "The name of the new vm to be created."
             }
         },
-        "newVMSize": {
+        "Size": {
             "type": "string",
             "metadata": {
                 "description": "The size of the new vm to be created."
             }
         },
-        "userName": {
+        "Username": {
             "type": "string",
             "metadata": {
                 "description": "The username for the local account that will be created on the new vm."
             }
         },
-        "password": {
+        "Password": {
             "type": "securestring",
             "metadata": {
                 "description": "The password for the local account that will be created on the new vm."
@@ -28,18 +28,71 @@
         }
     },
     "variables": {
-        "vmName": "[variables('vmName')]",
-        "labName": "devlab",
-        "labSubnetName": "default",
-        "labVirtualNetworkName": "[concat(variables('labName'), '-vnet')]",
-        "labVirtualNetworkId": "[resourceId('Microsoft.DevTestLab/labs/virtualnetworks', variables('labName'), variables('labVirtualNetworkName'))]",
-        "resourceName": "[concat(variables('labName'), '/', variables('vmName'))]",
-        "resourceType": "Microsoft.DevTestLab/labs/virtualMachines"
+        "computerName": "[parameters('Name')]",
+        "adminUsername": "[parameters('Username')]",
+        "adminPassword": "[parameters('Password')]",
+        "vmSize": "[parameters('Size')]",
+        "vmName": "[concat(parameters('Name'), '-vm')]",
+        "osDiskName": "[concat(variables('vmName'), '-os')]",
+        "dataDiskName": "[concat(variables('vmName'), '-data')]",
+        "publicIpName": "[concat(variables('vmName'), '-pip')]",
+        "nicName": "[concat(variables('vmName'), '-nic')]",
+        "domainNameLabel": "[concat('tomkri-', parameters('vmName'))]",
+        "vnetName": "devlab-vnet",
+        "subnetName": "default",
+        "apiVersion": "2015-06-15"
     },
     "resources": [
         {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIpName')]",
+            "apiVersion": "2017-06-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "PublicIPAddress"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('domainNameLabel')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[variables('nicName')]",
+            "apiVersion": "2017-06-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "NetworkInterface"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('pipName'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "primary": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('pipName'))]"
+            ]
+        },
+        {
             "type": "Microsoft.Compute/disks",
-            "name": "[concat(variables('vmName'), '-os')]",
+            "name": "[variables('dataDiskName')]",
             "apiVersion": "2017-03-30",
             "location": "[resourceGroup().location]",
             "properties": {
@@ -51,57 +104,109 @@
             }
         },
         {
-            "type": "Microsoft.Compute/disks",
-            "name": "[concat(variables('vmName'), '-data')]",
-            "apiVersion": "2017-03-30",
+            "apiVersion": "2016-04-30-preview",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('vmName')]",
             "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "VirtualMachine"
+            },
             "properties": {
-                "accountType": "Premium_LRS",
-                "creationData": {
-                    "createOption": "Empty"
+                "hardwareProfile": {
+                    "vmSize": "[variables('vmSize')]"
                 },
-                "diskSizeGB": 100
-            }
-        },
-        {
-            "apiVersion": "2017-04-26-preview",
-            "type": "Microsoft.DevTestLab/labs/virtualMachines",
-            "name": "[variables('resourceName')]",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "size": "[parameters('newVMSize')]",
-                "isAuthenticationWithSshKey": false,
-                "userName": "[parameters('userName')]",
-                "sshKey": "",
-                "password": "[parameters('password')]",
-                "labVirtualNetworkId": "[variables('labVirtualNetworkId')]",
-                "labSubnetName": "[variables('labSubnetName')]",
-                "galleryImageReference": {
-                    "Sku": "2016-Datacenter",
-                    "OsType": "Windows",
-                    "Publisher": "MicrosoftWindowsServer",
-                    "Offer": "WindowsServer",
-                    "Version": "latest"
-                },
-                "computeVm": {
-                    "osDiskId": "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-os'))]",
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Windows",
+                        "name": "[parameters('osDiskName')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS",
+                            "id": "[resourceId('Microsoft.Compute/disks', variables('osDiskName'))]"
+                        },
+                        "diskSizeGB": 127
+                    },
                     "dataDisks": [
                         {
-                            "managedDiskId": "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-data'))]"
+                            "lun": 0,
+                            "name": "[parameters('dataDiskName')]",
+                            "createOption": "Attach",
+                            "caching": "None",
+                            "managedDisk": {
+                                "id": "[resourceId('Microsoft.Compute/disks', variables('dataDiskName'))]"
+                            }
                         }
                     ]
+                },
+                "osProfile": {
+                    "computerName": "[variables('computerName')]",
+                    "adminUsername": "[variables('adminUsername')]",
+                    "adminPassword": "[variables('adminPassword')]",
+                    "windowsConfiguration": {
+                        "enableAutomaticUpdates": true,
+                        "timeZone": "Central European Time"
+                    },
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[concat(reference(concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName')), variables('apiVersion')).primaryEndpoints.blob)]"
+                    }
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/disks/', concat(variables('vmName'), '-os'))]",
-                "[resourceId('Microsoft.Compute/disks/', concat(variables('vmName'), '-data'))]"
+                "[resourceId('Microsoft.Compute/disks/', variables('dataDiskName'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
             ]
         }
+        // {
+        //     "apiVersion": "2017-04-26-preview",
+        //     "type": "Microsoft.DevTestLab/labs/virtualMachines",
+        //     "name": "[variables('resourceName')]",
+        //     "location": "[resourceGroup().location]",
+        //     "properties": {
+        //         "size": "[parameters('Size')]",
+        //         "isAuthenticationWithSshKey": false,
+        //         "userName": "[parameters('Username')]",
+        //         "sshKey": "",
+        //         "password": "[parameters('Password')]",
+        //         "labVirtualNetworkId": "[variables('labVirtualNetworkId')]",
+        //         "labSubnetName": "[variables('labSubnetName')]",
+        //         "galleryImageReference": {
+        //             "Sku": "2016-Datacenter",
+        //             "OsType": "Windows",
+        //             "Publisher": "MicrosoftWindowsServer",
+        //             "Offer": "WindowsServer",
+        //             "Version": "latest"
+        //         },
+        //         "computeVm": {
+        //             "dataDisks": [
+        //                 {
+        //                     "managedDiskId": "[resourceId('Microsoft.Compute/disks', concat(variables('vmName'), '-data'))]"
+        //                 }
+        //             ]
+        //         }
+        //     },
+        //     "dependsOn": [
+        //         "[resourceId('Microsoft.Compute/disks/', concat(variables('vmName'), '-data'))]"
+        //     ]
+        // }
     ],
     "outputs": {
-        "vmId": {
-            "type": "string",
-            "value": "[resourceId(variables('resourceType'), variables('labName'), variables('vmName'))]"
-        }
     }
 }

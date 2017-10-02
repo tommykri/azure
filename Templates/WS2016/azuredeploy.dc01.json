@@ -1,0 +1,18 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"Name": {
+			"value": "dc01"
+		},
+		"Size": {
+			"value": "Basic_A2"
+		},
+		"Username": {
+			"value": "tommy"
+		},
+		"Password": {
+			"value": "Tomkrist1234"
+		}
+	}
+}
